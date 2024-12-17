@@ -4,27 +4,37 @@ using API.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-builder.Services.AddDbContext<DataContext>(opt =>{
-    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+// Configure the database context with SQLite
+builder.Services.AddDbContext<DataContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Connection string is not configured.");
+    }
+    options.UseSqlite(connectionString);
 });
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Add and configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")  // Ensure this matches your Angular app's URL
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+// Ensure CORS is applied before other middlewares
+app.UseCors("AllowAngularApp");
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
+// Use routing and map controllers
 app.MapControllers();
 
+// Run the application
 app.Run();
